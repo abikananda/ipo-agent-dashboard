@@ -7,7 +7,9 @@ services:
       MYSQL_PASSWORD: ipo_password
       MYSQL_ROOT_PASSWORD: local_root_password
     ports: ["3306:3306"]
-    volumes: ["mysql_data:/var/lib/mysql"]
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./docker/mysql/init:/docker-entrypoint-initdb.d:ro
     healthcheck: {test: ["CMD","mysqladmin","ping","-h","localhost"], interval: 5s, timeout: 5s, retries: 20}
   backend:
     build: .
