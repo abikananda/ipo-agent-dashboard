@@ -15,6 +15,7 @@ services:
       DB_URL: jdbc:mysql://mysql:3306/ipo_analysis?useSSL=false&allowPublicKeyRetrieval=true
       DB_USERNAME: ipo_user
       DB_PASSWORD: ipo_password
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-demo}
     ports: ["8080:8080"]
     depends_on: {mysql: {condition: service_healthy}}
   frontend:
@@ -22,4 +23,3 @@ services:
     ports: ["4200:80"]
     depends_on: [backend]
 volumes: {mysql_data: {}}
-

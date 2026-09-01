@@ -8,10 +8,13 @@ import java.util.*;
 @Service
 public class IpoScoringService {
   public Recommendation score(Ipo ipo, List<FinancialPeriod> periods, MarketSnapshot market) {
+    return score(ipo, periods, market, null, List.of());
+  }
+  public Recommendation score(Ipo ipo, List<FinancialPeriod> periods, MarketSnapshot market, IpoValuation valuationData, List<IpoRisk> risks) {
     Map<String,Integer> scores = new LinkedHashMap<>();
     List<String> positives = new ArrayList<>(), negatives = new ArrayList<>(), missing = new ArrayList<>();
     int financial = financialScore(periods, positives, negatives, missing);
-    int valuation = 50; missing.add("Peer valuation data");
+    int valuation = valuationScore(valuationData, positives, negatives, missing);
     int business = ipo.getSector() == null ? 40 : 60;
     int issue = issueScore(ipo, positives, negatives);
     int subscription = market == null || market.getTotalSubscription() == null ? 0 : clamp(market.getTotalSubscription().multiply(BigDecimal.TEN).intValue());
@@ -21,14 +24,26 @@ public class IpoScoringService {
     scores.put("valuation", valuation); scores.put("businessQuality", business);
     scores.put("governance", 50); scores.put("issueStructure", issue);
     scores.put("subscriptionDemand", subscription); scores.put("marketSentiment", sentiment);
-    int overall = Math.round(financial*.25f + financial*.15f + valuation*.20f + business*.10f + 50*.10f + issue*.05f + subscription*.05f + sentiment*.05f + 50*.05f);
-    int present = 3 + (periods.size() >= 3 ? 3 : periods.size()) + (market == null ? 0 : 2) + (ipo.getRhpUrl() == null ? 0 : 1);
+    int governance = governanceScore(risks, negatives); int riskAdjustment = riskScore(risks);
+    scores.put("governance",governance); scores.put("riskAdjustment",riskAdjustment);
+    int overall = Math.round(financial*.25f + financial*.15f + valuation*.20f + business*.10f + governance*.10f + issue*.05f + subscription*.05f + sentiment*.05f + riskAdjustment*.05f);
+    boolean hardOverride=risks.stream().anyMatch(r->r.isHardOverride()||r.getSeverity()==IpoRisk.Severity.CRITICAL);
+    if(hardOverride) overall=Math.min(overall,44);
+    int present = 3 + (periods.size() >= 3 ? 3 : periods.size()) + (market == null ? 0 : 2) + (ipo.getRhpUrl() == null ? 0 : 1) + (valuationData==null?0:1);
     int confidence = Math.min(100, present * 10);
-    String verdict = confidence < 50 ? "INSUFFICIENT_DATA" : overall >= 70 ? "APPLY" : overall >= 60 ? "APPLY_WITH_CAUTION" : "AVOID";
+    String verdict = confidence < 50 ? "INSUFFICIENT_DATA" : hardOverride ? "AVOID" : overall >= 70 ? "APPLY" : overall >= 60 ? "APPLY_WITH_CAUTION" : "AVOID";
     String listing = sentiment >= 65 && subscription >= 65 ? "APPLY" : verdict;
     return new Recommendation(verdict, overall, confidence, listing, verdict,
         summary(verdict, positives, negatives), scores, positives, negatives, missing);
   }
+  private int valuationScore(IpoValuation v,List<String> pos,List<String> neg,List<String> missing){
+    if(v==null||v.getPeRatio()==null||v.getSectorMedianPe()==null){missing.add("Peer valuation data");return 50;}
+    int cmp=v.getPeRatio().compareTo(v.getSectorMedianPe()); if(cmp<=0){pos.add("Valuation is at or below the sector median");return 75;}
+    BigDecimal premium=v.getPeRatio().subtract(v.getSectorMedianPe()).multiply(BigDecimal.valueOf(100)).divide(v.getSectorMedianPe(),2,RoundingMode.HALF_UP);
+    if(premium.compareTo(BigDecimal.valueOf(40))>0){neg.add("Valuation is materially above the sector median");return 25;} return 50;
+  }
+  private int governanceScore(List<IpoRisk> risks,List<String> neg){int score=80;for(IpoRisk r:risks){score-=switch(r.getSeverity()){case CRITICAL->60;case HIGH->25;case MEDIUM->10;case LOW->3;};}if(score<50&&!risks.isEmpty())neg.add("Governance or disclosure risks reduce the score");return clamp(score);}
+  private int riskScore(List<IpoRisk> risks){int score=100;for(IpoRisk r:risks)score-=switch(r.getSeverity()){case CRITICAL->70;case HIGH->30;case MEDIUM->12;case LOW->4;};return clamp(score);}
   private int financialScore(List<FinancialPeriod> p, List<String> pos, List<String> neg, List<String> missing) {
     if (p.size() < 2) { missing.add("At least two comparable financial periods"); return 30; }
     FinancialPeriod first=p.getFirst(), last=p.getLast(); int score=50;

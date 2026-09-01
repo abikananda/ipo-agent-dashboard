@@ -1,0 +1,3 @@
+package com.abikananda.ipo.api; import com.abikananda.ipo.domain.AnalysisJob; import com.abikananda.ipo.repository.AnalysisJobRepository; import org.springframework.http.HttpStatus; import org.springframework.web.bind.annotation.*; import org.springframework.web.server.ResponseStatusException;
+@RestController @RequestMapping("/api/v1/jobs") public class JobController {private final AnalysisJobRepository jobs;public JobController(AnalysisJobRepository j){jobs=j;}@GetMapping("/{id}") AnalysisJob one(@PathVariable String id){return jobs.findById(id).orElseThrow(()->new ResponseStatusException(HttpStatus.NOT_FOUND,"Job not found"));}}
+

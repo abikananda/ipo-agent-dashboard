@@ -18,4 +18,14 @@ class IpoScoringServiceTest {
   Recommendation r=new IpoScoringService().score(Ipo.builder().build(),List.of(),null);
   assertThat(r.recommendation()).isEqualTo("INSUFFICIENT_DATA"); assertThat(r.confidenceScore()).isLessThan(50);
  }
+ @Test void criticalRiskForcesAvoidAndCapsScore(){
+  Ipo ipo=Ipo.builder().sector("Tech").issueSizeCrore(BigDecimal.valueOf(100)).freshIssueCrore(BigDecimal.valueOf(100)).rhpUrl("https://sebi.gov.in/rhp.pdf").build();
+  FinancialPeriod a=FinancialPeriod.builder().revenueCrore(BigDecimal.valueOf(100)).patCrore(BigDecimal.TEN).build();
+  FinancialPeriod b=FinancialPeriod.builder().revenueCrore(BigDecimal.valueOf(200)).patCrore(BigDecimal.valueOf(30)).operatingCashFlowCrore(BigDecimal.valueOf(25)).build();
+  MarketSnapshot m=MarketSnapshot.builder().gmp(BigDecimal.valueOf(50)).totalSubscription(BigDecimal.valueOf(20)).build();
+  IpoValuation v=IpoValuation.builder().peRatio(BigDecimal.valueOf(20)).sectorMedianPe(BigDecimal.valueOf(25)).build();
+  IpoRisk risk=IpoRisk.builder().severity(IpoRisk.Severity.CRITICAL).category("Governance").description("Material regulatory action").hardOverride(true).build();
+  Recommendation r=new IpoScoringService().score(ipo,List.of(a,b),m,v,List.of(risk));
+  assertThat(r.recommendation()).isEqualTo("AVOID");assertThat(r.overallScore()).isLessThanOrEqualTo(44);
+ }
 }
