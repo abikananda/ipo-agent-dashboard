@@ -54,6 +54,31 @@ npm run build
 
 Docker Compose enables the `demo` profile by default. Set `SPRING_PROFILES_ACTIVE=default` for a clean production database.
 
+### MySQL 8.4 authentication error
+
+MySQL 8.4 no longer loads `mysql_native_password` by default. If an existing database volume or user was created with that legacy plugin, migrate the application user once:
+
+```bash
+docker compose exec mysql mysql -uroot -plocal_root_password \
+  -e "ALTER USER 'ipo_user'@'%' IDENTIFIED WITH caching_sha2_password BY 'ipo_password'; FLUSH PRIVILEGES;"
+docker compose restart backend
+```
+
+For a non-Docker MySQL installation, sign in as an administrator and run [`scripts/mysql-auth-migration.sql`](scripts/mysql-auth-migration.sql), changing the username, host and password to match your environment.
+
+To verify the current authentication plugin:
+
+```sql
+SELECT user, host, plugin FROM mysql.user WHERE user = 'ipo_user';
+```
+
+The expected plugin is `caching_sha2_password`. On a disposable development database, deleting and recreating the Docker volume also fixes it, but permanently deletes that volume's data:
+
+```bash
+docker compose down -v
+docker compose up --build
+```
+
 ## Live-source configuration
 
 Official exchange/regulator endpoints can change access requirements and must be supplied only when their terms permit automated access:
