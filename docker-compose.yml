@@ -1,0 +1,27 @@
+services:
+  mysql:
+    image: mysql:8.4
+    environment:
+      MYSQL_DATABASE: ipo_analysis
+      MYSQL_USER: ipo_user
+      MYSQL_PASSWORD: ipo_password
+      MYSQL_ROOT_PASSWORD: local_root_password
+    ports: ["3306:3306"]
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./docker/mysql/init:/docker-entrypoint-initdb.d:ro
+    healthcheck: {test: ["CMD","mysqladmin","ping","-h","localhost"], interval: 5s, timeout: 5s, retries: 20}
+  backend:
+    build: .
+    environment:
+      DB_URL: jdbc:mysql://mysql:3306/ipo_analysis?useSSL=false&allowPublicKeyRetrieval=true
+      DB_USERNAME: ipo_user
+      DB_PASSWORD: ipo_password
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-demo}
+    ports: ["8080:8080"]
+    depends_on: {mysql: {condition: service_healthy}}
+  frontend:
+    build: frontend
+    ports: ["4200:80"]
+    depends_on: [backend]
+volumes: {mysql_data: {}}
