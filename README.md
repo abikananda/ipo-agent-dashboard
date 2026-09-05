@@ -102,6 +102,8 @@ ollama serve
 
 Then set `IPO_AI_PROVIDER=ollama`, `IPO_AI_BASE_URL=http://localhost:11434`, and `IPO_AI_MODEL=llama3.2:3b`. When the backend runs in Docker Compose, its default Ollama URL is `http://host.docker.internal:11434`. Ollama analyzes extracted RHP/DRHP text and stores source-linked risks; numeric formulas, confidence, hard-risk overrides, and the final verdict remain deterministic Java logic. A missing document or unavailable Ollama produces a `PARTIAL` job rather than discarding the deterministic result.
 
+Ollama requests are bounded to 24,000 input characters, 1,600 generated tokens, eight risks, and ten minutes by default. Tune these using `IPO_AI_MAX_INPUT_CHARS`, `IPO_AI_MAX_OUTPUT_TOKENS`, and `IPO_AI_TIMEOUT`. These limits prevent a small local model from producing an unbounded or truncated JSON response.
+
 For an IPO discovered as `example-limited`, ingest an official PDF and then queue analysis (use the generated Spring Security username `user` and the password printed at startup):
 
 ```bash

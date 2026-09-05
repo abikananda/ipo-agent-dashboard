@@ -26,6 +26,9 @@ ipo:
     base-url: ${IPO_AI_BASE_URL:http://localhost:11434}
     api-key: ${IPO_AI_API_KEY:}
     model: ${IPO_AI_MODEL:llama3.2:3b}
+    timeout: ${IPO_AI_TIMEOUT:10m}
+    max-input-chars: ${IPO_AI_MAX_INPUT_CHARS:24000}
+    max-output-tokens: ${IPO_AI_MAX_OUTPUT_TOKENS:1600}
 resilience4j.retry.instances.ipoSource:
   max-attempts: 3
   wait-duration: 2s
