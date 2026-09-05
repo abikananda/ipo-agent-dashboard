@@ -18,6 +18,10 @@ services:
       DB_USERNAME: ipo_user
       DB_PASSWORD: ipo_password
       SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-demo}
+      IPO_AI_PROVIDER: ${IPO_AI_PROVIDER:-disabled}
+      IPO_AI_BASE_URL: ${IPO_AI_BASE_URL:-http://host.docker.internal:11434}
+      IPO_AI_MODEL: ${IPO_AI_MODEL:-llama3.2:3b}
+    extra_hosts: ["host.docker.internal:host-gateway"]
     ports: ["8080:8080"]
     depends_on: {mysql: {condition: service_healthy}}
   frontend:

@@ -6,7 +6,7 @@ import org.springframework.security.config.Customizer;
 import org.springframework.security.web.SecurityFilterChain;
 @Configuration public class SecurityConfig {
  @Bean SecurityFilterChain apiSecurity(HttpSecurity http) throws Exception {
-  return http.authorizeHttpRequests(a->a
+  return http.csrf(csrf->csrf.ignoringRequestMatchers("/api/v1/**")).authorizeHttpRequests(a->a
     .requestMatchers("/actuator/health","/v3/api-docs/**","/swagger-ui/**","/swagger-ui.html").permitAll()
     .requestMatchers(HttpMethod.GET,"/api/v1/**").permitAll()
     .requestMatchers("/api/v1/**").authenticated().anyRequest().denyAll())
