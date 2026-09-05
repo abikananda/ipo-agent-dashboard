@@ -1,10 +1,5 @@
 spring:
   application.name: ipo-analysis-agent
-  security:
-    user:
-      name: admin
-      password: admin123
-      roles: ADMIN
   datasource:
     url: ${DB_URL:jdbc:mysql://localhost:3306/ipo_analysis?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true}
     username: ${DB_USERNAME:ipo_user}
@@ -23,6 +18,7 @@ ipo:
     fetch-on-startup: ${IPO_FETCH_ON_STARTUP:true}
   documents:
     allowed-hosts: ${IPO_DOCUMENT_ALLOWED_HOSTS:sebi.gov.in,www.sebi.gov.in,nseindia.com,www.nseindia.com,bseindia.com,www.bseindia.com}
+    max-size-bytes: ${IPO_DOCUMENT_MAX_SIZE_BYTES:52428800}
   schedules:
     discovery: ${IPO_DISCOVERY_CRON:0 0 */6 * * *}
   ai:

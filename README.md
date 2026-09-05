@@ -91,6 +91,8 @@ IPO_BSE_FEED_URL=https://www.bseindia.com/markets/publicissues/ipoissues?Type=P&
 
 These are public HTML pages, not guaranteed APIs. A source that changes markup or rejects automated requests is reported independently at `GET /api/v1/ipos/discovery-status`; no synthetic data is generated. Override a URL only with an equivalent page whose collection terms you are permitted to use.
 
+Official PDFs are limited to 50 MB by default. Override this with `IPO_DOCUMENT_MAX_SIZE_BYTES` when required; the limit applies only to the document-download WebClient.
+
 For local Ollama:
 
 ```bash
