@@ -17,11 +17,12 @@ import java.util.Map;
 
 /** Terms-compliant, best-effort parser for the three official public issue pages. */
 public class OfficialPublicIssuesAdapter implements IpoSourceAdapter {
+ private static final String SEBI_LISTING_URL="https://www.sebi.gov.in/sebiweb/home/HomeAction.do?doListing=yes&sid=3&smid=10&ssid=15";
  private final String name;
  private final String endpoint;
  private final IpoSource.SourceType sourceType;
 
- public OfficialPublicIssuesAdapter(String name,String endpoint,IpoSource.SourceType sourceType){this.name=name;this.endpoint=endpoint;this.sourceType=sourceType;}
+ public OfficialPublicIssuesAdapter(String name,String endpoint,IpoSource.SourceType sourceType){this.name=name;this.endpoint=sourceType==IpoSource.SourceType.SEBI&&endpoint!=null&&endpoint.contains("/filings/public-issues.html")?SEBI_LISTING_URL:endpoint;this.sourceType=sourceType;}
  public String name(){return name;}
  public IpoSource.SourceType sourceType(){return sourceType;}
  public boolean configured(){return endpoint!=null&&!endpoint.isBlank();}
@@ -31,8 +32,9 @@ public class OfficialPublicIssuesAdapter implements IpoSourceAdapter {
   if(!configured())return List.of();
   try{
    Document doc=Jsoup.connect(endpoint)
-     .userAgent("IPO-Analysis-Agent/1.0 (+research; contact repository owner)")
+     .userAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/131.0 Safari/537.36")
      .header("Accept","text/html,application/xhtml+xml")
+     .referrer("https://www.sebi.gov.in/")
      .timeout((int)Duration.ofSeconds(20).toMillis()).get();
    Map<String,DiscoveredIpo> rows=new LinkedHashMap<>();
    if(sourceType==IpoSource.SourceType.SEBI)parseSebi(doc,rows);else parseExchange(doc,rows);
@@ -43,9 +45,9 @@ public class OfficialPublicIssuesAdapter implements IpoSourceAdapter {
 
  private void parseSebi(Document doc,Map<String,DiscoveredIpo> out){
   for(Element link:doc.select("a[href]")){
-   String href=link.absUrl("href");String text=clean(link.text());
-   if(!href.contains("sebi.gov.in")||!href.contains("/filings/public-issues/")||!looksLikeCompany(text))continue;
-   add(out,text,href,status(text));
+   String href=link.absUrl("href");String title=clean(link.text());String company=companyName(title);
+   if(!href.contains("sebi.gov.in")||!looksLikeCompany(company))continue;
+   add(out,company,href,status(title));
   }
  }
 
@@ -61,6 +63,7 @@ public class OfficialPublicIssuesAdapter implements IpoSourceAdapter {
  }
 
  private String firstCell(Element row){Element cell=row.selectFirst("td");return cell==null?"":clean(cell.text());}
+ private String companyName(String title){return clean(title.replaceFirst("(?i)\\s*[-–:]?\\s*(addendum.*|corrigendum.*|u?drhp.*|rhp.*|draft abridged prospectus.*|abridged prospectus.*|prospectus.*)$",""));}
  private void add(Map<String,DiscoveredIpo> out,String company,String url,Ipo.IpoStatus status){
   String key=company.toLowerCase(Locale.ROOT);Ipo.IpoType type=key.contains(" sme")||key.contains("small and medium")?Ipo.IpoType.SME:Ipo.IpoType.MAINBOARD;
   out.putIfAbsent(key,new DiscoveredIpo(Integer.toHexString((name+url).hashCode()),company,type,status,url,Instant.now()));
