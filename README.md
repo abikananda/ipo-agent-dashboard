@@ -13,10 +13,10 @@ An explainable Indian IPO research platform that combines financial quality, val
 - Separate overall score and data-confidence score
 - Financial history and time-stamped GMP/subscription snapshots with provenance
 - MySQL schema through Flyway; optional demo data through the `demo` profile
-- Configurable SEBI, NSE and BSE JSON feed adapters with retry and source provenance
+- Live SEBI, NSE and BSE public-page collectors with retry and authoritative provenance
 - RHP/DRHP PDF validation, extraction, hashing and SSRF host allowlisting
 - Risk, valuation, source, document, analysis-history and background-job models
-- OpenAI-compatible structured narrative provider with a safe disabled fallback
+- Ollama and OpenAI-compatible structured narrative providers with a safe disabled fallback
 - Financial and GMP charts, source links, risks and comparison selection
 - Unit tests for strong financials and insufficient-data behavior
 - Docker deployment for frontend, backend and MySQL
@@ -81,17 +81,31 @@ docker compose up --build
 
 ## Live-source configuration
 
-Official exchange/regulator endpoints can change access requirements and must be supplied only when their terms permit automated access:
+The application uses these official public pages by default and runs discovery at startup and every six hours:
 
 ```text
-IPO_SEBI_FEED_URL=
-IPO_NSE_FEED_URL=
-IPO_BSE_FEED_URL=
+IPO_SEBI_FEED_URL=https://www.sebi.gov.in/filings/public-issues.html
+IPO_NSE_FEED_URL=https://www.nseindia.com/market-data/all-upcoming-issues-ipo
+IPO_BSE_FEED_URL=https://www.bseindia.com/markets/publicissues/ipoissues?Type=P&id=1
 ```
 
-Each configured endpoint must return normalized JSON records containing `id`, `companyName`, `type`, and `status`. Unconfigured sources are reported explicitly and do not generate fake data.
+These are public HTML pages, not guaranteed APIs. A source that changes markup or rejects automated requests is reported independently at `GET /api/v1/ipos/discovery-status`; no synthetic data is generated. Override a URL only with an equivalent page whose collection terms you are permitted to use.
 
-Enable optional structured AI narrative analysis with `IPO_AI_PROVIDER=openai-compatible`, an API key, base URL and model. Numeric formulas, confidence, hard-risk overrides and final score aggregation remain deterministic Java logic.
+For local Ollama:
+
+```bash
+ollama pull llama3.2:3b
+ollama serve
+```
+
+Then set `IPO_AI_PROVIDER=ollama`, `IPO_AI_BASE_URL=http://localhost:11434`, and `IPO_AI_MODEL=llama3.2:3b`. When the backend runs in Docker Compose, its default Ollama URL is `http://host.docker.internal:11434`. Ollama analyzes extracted RHP/DRHP text and stores source-linked risks; numeric formulas, confidence, hard-risk overrides, and the final verdict remain deterministic Java logic. A missing document or unavailable Ollama produces a `PARTIAL` job rather than discarding the deterministic result.
+
+For an IPO discovered as `example-limited`, ingest an official PDF and then queue analysis (use the generated Spring Security username `user` and the password printed at startup):
+
+```bash
+curl -u user:PASSWORD -H "Content-Type: application/json" -d '{"url":"https://www.sebi.gov.in/path/to/document.pdf","type":"RHP"}' http://localhost:8080/api/v1/ipos/example-limited/documents
+curl -u user:PASSWORD -X POST http://localhost:8080/api/v1/ipos/example-limited/analyze
+```
 
 ## API
 
@@ -99,7 +113,9 @@ Enable optional structured AI narrative analysis with `IPO_AI_PROVIDER=openai-co
 - `GET /api/v1/ipos/{slug}` — financial history, market history and analysis
 - `GET /api/v1/ipos/compare?ids=1,2` — compare up to four IPOs
 - `POST /api/v1/ipos/discover` — run configured source discovery
+- `GET /api/v1/ipos/discovery-status` — inspect the latest collector result and per-source errors
 - `POST /api/v1/ipos/{slug}/analyze` — queue reproducible analysis
+- `POST /api/v1/ipos/{slug}/documents` — download and extract an allowlisted official RHP/DRHP PDF
 - `GET /api/v1/ipos/{slug}/recommendation-history` — versioned history
 - `GET /api/v1/jobs/{jobId}` — background-job state
 - `GET /api/v1/dashboard/summary` — dashboard counts
@@ -110,4 +126,4 @@ The MVP weights financial quality (25%), growth (15%), valuation (20%), business
 
 ## External integration boundary
 
-The repository implements the collection contracts, scheduling, persistence, validation and failure behavior. It intentionally does not ship undocumented scrapers, CAPTCHA bypasses, paid-feed credentials, or invented endpoint URLs. Production deployment must configure legally accessible source feeds and validate their payload mappings.
+The collectors use only public official pages and do not bypass WAFs or CAPTCHAs. NSE/BSE can change or restrict their pages, so production deployments should monitor discovery status and use a licensed feed if reliable machine access is required.

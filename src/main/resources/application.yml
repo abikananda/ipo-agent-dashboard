@@ -17,18 +17,19 @@ management.endpoints.web.exposure.include: health,info,metrics
 springdoc.swagger-ui.path: /swagger-ui.html
 ipo:
   sources:
-    sebi-url: ${IPO_SEBI_FEED_URL:}
-    nse-url: ${IPO_NSE_FEED_URL:}
-    bse-url: ${IPO_BSE_FEED_URL:}
+    sebi-url: ${IPO_SEBI_FEED_URL:https://www.sebi.gov.in/filings/public-issues.html}
+    nse-url: ${IPO_NSE_FEED_URL:https://www.nseindia.com/market-data/all-upcoming-issues-ipo}
+    bse-url: ${IPO_BSE_FEED_URL:https://www.bseindia.com/markets/publicissues/ipoissues?Type=P&id=1}
+    fetch-on-startup: ${IPO_FETCH_ON_STARTUP:true}
   documents:
     allowed-hosts: ${IPO_DOCUMENT_ALLOWED_HOSTS:sebi.gov.in,www.sebi.gov.in,nseindia.com,www.nseindia.com,bseindia.com,www.bseindia.com}
   schedules:
     discovery: ${IPO_DISCOVERY_CRON:0 0 */6 * * *}
   ai:
     provider: ${IPO_AI_PROVIDER:disabled}
-    base-url: ${IPO_AI_BASE_URL:https://api.openai.com/v1}
+    base-url: ${IPO_AI_BASE_URL:http://localhost:11434}
     api-key: ${IPO_AI_API_KEY:}
-    model: ${IPO_AI_MODEL:gpt-5-mini}
+    model: ${IPO_AI_MODEL:llama3.2:3b}
 resilience4j.retry.instances.ipoSource:
   max-attempts: 3
   wait-duration: 2s

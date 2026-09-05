@@ -1,3 +1,2 @@
 package com.abikananda.ipo.api; import com.abikananda.ipo.source.SourceIngestionService; import org.springframework.web.bind.annotation.*;
-@RestController @RequestMapping("/api/v1/ipos") public class DiscoveryController {private final SourceIngestionService service;public DiscoveryController(SourceIngestionService s){service=s;}@PostMapping("/discover") SourceIngestionService.DiscoveryResult discover(){return service.discover();}}
-
+@RestController @RequestMapping("/api/v1/ipos") public class DiscoveryController {private final SourceIngestionService service;public DiscoveryController(SourceIngestionService s){service=s;}@PostMapping("/discover") SourceIngestionService.DiscoveryResult discover(){return service.discover();}@GetMapping("/discovery-status") SourceIngestionService.DiscoveryResult status(){return service.status();}}
