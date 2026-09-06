@@ -123,6 +123,20 @@ curl -u user:PASSWORD -X POST http://localhost:8080/api/v1/ipos/example-limited/
 - `GET /api/v1/ipos/{slug}/recommendation-history` — versioned history
 - `GET /api/v1/jobs/{jobId}` — background-job state
 - `GET /api/v1/dashboard/summary` — dashboard counts
+- `GET /api/v1/extractions/templates` — list developer extraction templates
+- `GET /api/v1/extractions/templates/{templateId}` — inspect a loaded YAML template
+- `POST /api/v1/extractions/templates/{templateId}/preview` — fetch and extract source data without persistence
+
+## Template extraction preview
+
+Two editable YAML templates are included under `src/main/resources/extraction-templates`: `ipo-details-v1` (BSE and Chittorgarh) and `gmp-v1` (InvestorGain and IPOWatch). Preview calls fetch each configured source, optionally follow bounded detail links, send cleaned content and the template schema to Ollama, and return per-source content previews, extracted JSON, and errors. Preview never writes to MySQL.
+
+```bash
+curl -u user:PASSWORD -X POST http://localhost:8080/api/v1/extractions/templates/ipo-details-v1/preview
+curl -u user:PASSWORD -X POST http://localhost:8080/api/v1/extractions/templates/gmp-v1/preview
+```
+
+The sites may reject server-side fetches or require client-side rendering. Such failures are returned as `FETCH_FAILED` for template tuning; the preview pipeline does not bypass WAFs, CAPTCHAs, or source access controls.
 
 ## Scoring model
 

@@ -1,0 +1,108 @@
+templateId: ipo-details-v1
+name: IPO details discovery
+description: Extract and normalize IPO issue data from BSE and Chittorgarh without inventing missing values.
+datasetType: IPO_DETAILS
+version: 1
+
+sources:
+  - sourceId: bse-public-issues
+    sourceName: BSE
+    description: Official BSE public-issue listing with linked security detail pages.
+    sourceType: OFFICIAL
+    reliability: AUTHORITATIVE
+    listingUrl: https://www.bseindia.com/markets/publicissues/ipoissues?Type=P&id=1
+    fetchStrategy: HTTP_HTML_WITH_DETAIL_LINKS
+    extractionInstruction: |
+      From the BSE public-issue listing extract Security Name as companyName, IPO type (MAINBOARD or SME),
+      Start Date as openDate, End Date as closeDate, Offer Price, Face Value and Issue Status.
+      For every linked Security Name, use the appended DETAIL PAGE content to extract Security Type, Symbol,
+      Issue Period, Issue Size - No. of Shares, Price Band, Market Lot and Registrar. Match a detail page to its
+      listing row by detailUrl first and normalized companyName second. A fixed price populates offerPrice,
+      priceMin and priceMax with the same number. A price range populates priceMin and priceMax and leaves
+      offerPrice null. Keep securityType separate from IPO type. Return UNKNOWN when MAINBOARD/SME or status
+      is not explicit. Dates must use YYYY-MM-DD. Missing numeric values are null, never zero.
+    detailTraversal:
+      enabled: true
+      linkSelector: "a[href*='PublicIssues'], a[href*='publicissues'], a[href*='security'], a[href*='Security']"
+      maxPages: 10
+      extractionInstruction: Extract the labelled security fields from each BSE detail page.
+
+  - sourceId: chittorgarh-ipo-list
+    sourceName: Chittorgarh
+    description: Mainboard and SME IPO list with linked IPO detail pages.
+    sourceType: UNOFFICIAL
+    reliability: MEDIUM
+    listingUrl: https://www.chittorgarh.com/report/ipo-in-india-list-main-board-sme/82/mainboard/
+    fetchStrategy: HTTP_HTML_WITH_DETAIL_LINKS
+    extractionInstruction: |
+      Extract every IPO table row and its linked IPO detail page. Capture companyName, MAINBOARD/SME type,
+      status, openDate, closeDate, listingDate, price band, face value, lot size, issue size in shares and crore,
+      fresh issue, offer for sale, exchange symbol, registrar, lead managers, sector and DRHP/RHP links only when
+      explicitly present. Remove document suffixes from companyName. Do not treat advertisements, broker links,
+      NCDs or rights issues as IPOs. Preserve Chittorgarh as an unofficial/secondary source and do not override a
+      conflicting authoritative BSE value. Dates must use YYYY-MM-DD and missing values must be null.
+    detailTraversal:
+      enabled: true
+      linkSelector: "a[href*='/ipo/']"
+      maxPages: 10
+      extractionInstruction: Enrich each listing record using only labelled values on its IPO detail page.
+
+outputSchema:
+  type: object
+  additionalProperties: false
+  required: [records, extractionWarnings]
+  properties:
+    records:
+      type: array
+      description: IPO records extracted from one configured source.
+      maxItems: 100
+      items:
+        type: object
+        additionalProperties: false
+        required: [companyName, type, status, sourceUrl, detailUrl, missingFields, extractionWarnings, extractionConfidence]
+        properties:
+          externalId: {type: [string, "null"], description: Stable source-provided issue identifier; never generate one.}
+          companyName: {type: string, minLength: 3, maxLength: 250, description: Legal company/security name without DRHP/RHP document suffixes.}
+          symbol: {type: [string, "null"], maxLength: 50, description: Exchange symbol explicitly displayed by the source.}
+          type: {type: string, enum: [MAINBOARD, SME, UNKNOWN], description: IPO platform/category, not the security instrument type.}
+          securityType: {type: [string, "null"], maxLength: 100, description: Security Type shown on the BSE detail page.}
+          status: {type: string, enum: [PIPELINE, UPCOMING, OPEN, CLOSED, LISTED, WITHDRAWN, UNKNOWN], description: Explicit or date-derived issue lifecycle state.}
+          sector: {type: [string, "null"], maxLength: 150, description: Explicitly stated company industry or sector.}
+          openDate: {type: [string, "null"], format: date, description: First application date in YYYY-MM-DD format.}
+          closeDate: {type: [string, "null"], format: date, description: Final application date in YYYY-MM-DD format.}
+          listingDate: {type: [string, "null"], format: date, description: Official or explicitly labelled expected listing date.}
+          offerPrice: {type: [number, "null"], minimum: 0, description: Fixed offer price in INR per share.}
+          priceMin: {type: [number, "null"], minimum: 0, description: Lower price-band value in INR per share.}
+          priceMax: {type: [number, "null"], minimum: 0, description: Upper price-band value in INR per share.}
+          faceValue: {type: [number, "null"], minimum: 0, description: Nominal face value in INR per share.}
+          issueSizeShares: {type: [integer, "null"], minimum: 1, description: Issue Size - No. of Shares.}
+          issueSizeCrore: {type: [number, "null"], minimum: 0, description: Total issue size in INR crore.}
+          freshIssueCrore: {type: [number, "null"], minimum: 0, description: Fresh issue component in INR crore.}
+          ofsCrore: {type: [number, "null"], minimum: 0, description: Offer-for-sale component in INR crore.}
+          lotSize: {type: [integer, "null"], minimum: 1, description: Market Lot/minimum application shares.}
+          registrar: {type: [string, "null"], maxLength: 250, description: Full registrar organization name.}
+          leadManagers:
+            type: array
+            maxItems: 20
+            description: Explicitly listed book-running lead managers.
+            items: {type: string, maxLength: 250}
+          drhpUrl: {type: [string, "null"], description: Allowlisted official DRHP URL.}
+          rhpUrl: {type: [string, "null"], description: Allowlisted official RHP URL.}
+          sourceUrl: {type: string, description: Exact listing page used for extraction.}
+          detailUrl: {type: [string, "null"], description: Exact security/IPO detail page used for enrichment.}
+          missingFields:
+            type: array
+            uniqueItems: true
+            description: Useful fields absent or unclear in this source.
+            items: {type: string}
+          extractionWarnings:
+            type: array
+            maxItems: 20
+            description: Conflicts or ambiguities found for this record.
+            items: {type: string, maxLength: 500}
+          extractionConfidence: {type: integer, minimum: 0, maximum: 100, description: Confidence in extraction accuracy, not investment confidence.}
+    extractionWarnings:
+      type: array
+      maxItems: 50
+      description: Source-level warnings.
+      items: {type: string, maxLength: 500}

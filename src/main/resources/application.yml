@@ -21,6 +21,11 @@ ipo:
     max-size-bytes: ${IPO_DOCUMENT_MAX_SIZE_BYTES:52428800}
   schedules:
     discovery: ${IPO_DISCOVERY_CRON:0 0 */6 * * *}
+  extraction:
+    allowed-hosts: ${IPO_EXTRACTION_ALLOWED_HOSTS:www.bseindia.com,bseindia.com,www.chittorgarh.com,chittorgarh.com,www.investorgain.com,investorgain.com,ipowatch.in,www.ipowatch.in}
+    max-response-bytes: ${IPO_EXTRACTION_MAX_RESPONSE_BYTES:2097152}
+    max-text-chars: ${IPO_EXTRACTION_MAX_TEXT_CHARS:30000}
+    fetch-timeout: ${IPO_EXTRACTION_FETCH_TIMEOUT:45s}
   ai:
     provider: ${IPO_AI_PROVIDER:disabled}
     base-url: ${IPO_AI_BASE_URL:http://localhost:11434}
