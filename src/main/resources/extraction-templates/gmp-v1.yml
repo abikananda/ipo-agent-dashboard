@@ -1,0 +1,75 @@
+templateId: gmp-v1
+name: Live IPO GMP extraction
+description: Extract time-stamped unofficial GMP observations from InvestorGain and IPOWatch.
+datasetType: GMP_SNAPSHOT
+version: 1
+
+sources:
+  - sourceId: investorgain-live-gmp
+    sourceName: InvestorGain
+    description: Unofficial live mainboard and SME IPO GMP report.
+    sourceType: UNOFFICIAL
+    reliability: UNOFFICIAL
+    url: https://www.investorgain.com/report/ipo-gmp-live/331/
+    fetchStrategy: HTTP_HTML
+    extractionInstruction: |
+      Extract each current IPO GMP table row. Capture companyName, MAINBOARD/SME type when explicit, GMP,
+      issue/cap price, estimated listing price, estimated gain percentage, Kostak, Subject to Sauda, source update
+      time and row status. Do not treat advertisements or trending-name prose as table records. Do not infer GMP
+      from estimated listing price. Blank, dash, NA and Not Started values are null, not zero. All data is unofficial.
+
+  - sourceId: ipowatch-live-gmp
+    sourceName: IPOWatch
+    description: Unofficial latest IPO grey-market-premium report.
+    sourceType: UNOFFICIAL
+    reliability: UNOFFICIAL
+    url: https://ipowatch.in/ipo-grey-market-premium-latest-ipo-gmp/
+    fetchStrategy: HTTP_HTML
+    extractionInstruction: |
+      Extract every current IPO GMP table row. Capture companyName, MAINBOARD/SME type when explicit, GMP,
+      price band or issue price, estimated listing price/return when displayed, Kostak, Subject to Sauda and source
+      update date. Keep GMP, Kostak and Subject to Sauda separate. Ignore explanatory text, old examples and
+      advertisements. Do not calculate missing values. Blank, dash and NA values are null. All data is unofficial.
+
+outputSchema:
+  type: object
+  additionalProperties: false
+  required: [records, extractionWarnings]
+  properties:
+    records:
+      type: array
+      description: Unofficial GMP observations extracted from one source.
+      maxItems: 100
+      items:
+        type: object
+        additionalProperties: false
+        required: [companyName, type, unofficial, sourceUrl, sourceUpdatedAt, missingFields, extractionWarnings, extractionConfidence]
+        properties:
+          companyName: {type: string, minLength: 3, maxLength: 250, description: IPO company associated with this GMP observation.}
+          type: {type: string, enum: [MAINBOARD, SME, UNKNOWN], description: IPO category only when explicit.}
+          gmp: {type: [number, "null"], description: Grey market premium in INR per share; not Kostak or Subject to Sauda.}
+          issuePrice: {type: [number, "null"], minimum: 0, description: Issue/cap price displayed by the GMP source.}
+          estimatedListingPrice: {type: [number, "null"], minimum: 0, description: Unofficial estimated listing price displayed by the source.}
+          estimatedGainPercent: {type: [number, "null"], description: Unofficial estimated percentage gain displayed by the source.}
+          kostak: {type: [number, "null"], description: Unofficial application premium, kept separate from GMP.}
+          subjectToSauda: {type: [number, "null"], description: Unofficial Subject to Sauda value, kept separate from GMP.}
+          status: {type: string, enum: [UPCOMING, OPEN, CLOSED, LISTED, UNKNOWN], description: Status explicitly displayed by the source.}
+          sourceUpdatedAt: {type: [string, "null"], description: Update date/time displayed by the source; null when unavailable.}
+          unofficial: {type: boolean, const: true, description: GMP is unregulated and indicative only.}
+          sourceUrl: {type: string, description: Exact GMP page used for extraction.}
+          missingFields:
+            type: array
+            uniqueItems: true
+            description: GMP fields absent or unclear in the source.
+            items: {type: string}
+          extractionWarnings:
+            type: array
+            maxItems: 20
+            description: Ambiguities detected in this row.
+            items: {type: string, maxLength: 500}
+          extractionConfidence: {type: integer, minimum: 0, maximum: 100, description: Confidence in extraction accuracy, not GMP reliability.}
+    extractionWarnings:
+      type: array
+      maxItems: 50
+      description: Source-level warnings.
+      items: {type: string, maxLength: 500}
